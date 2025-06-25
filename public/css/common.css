@@ -1,0 +1,63 @@
+@font-face {
+    font-family: 'Satoshi-Variable';
+    src: url('../webfonts//satoshi/Satoshi-Variable.woff2') format('woff2'),
+        url('../webfonts//satoshi/Satoshi-Variable.woff') format('woff'),
+        url('../webfonts//satoshi/Satoshi-Variable.ttf') format('truetype');
+    font-weight: 400;
+    font-display: swap;
+    font-style: normal;
+}
+
+:root {
+    --bs-border-color:#12558052;
+}
+
+ul, ol, li {list-style: none;margin: 0;padding: 0;}
+a{display: inline-block;}
+input[type=number] { -moz-appearance: textfield;}
+.pointer{cursor: pointer;}
+body{font-family:'Satoshi-Variable';font-size: 14px;color: #000000;}
+
+
+*::-webkit-scrollbar {scrollbar-width: thin !important;background: #eee;width: 8px;}
+*::-webkit-scrollbar-thumb {background: #5485a4;}
+*{box-sizing: border-box;}
+.fnt12{font-size:12px;}
+.fnt24{font-size:24px;}
+.fnt16-w500{font-size:16px;font-weight: 500;}
+.fnt30-w800{font-size:30px;font-weight: 800;}
+.fnt11-w500{font-family: 'Satoshi-Variable'; font-size: 11px;font-weight:500;}
+.fnt12-w500{font-family: 'Satoshi-Variable'; font-size: 12px;font-weight:500;}
+.fnt13-w500{font-family: 'Satoshi-Variable'; font-size: 13px;font-weight:500;}
+.fnt14-w500{font-family: 'Satoshi-Variable'; font-size: 14px;font-weight:500;}
+.fnt18-w400{font-family: 'Satoshi-Variable'; font-size: 18px;font-weight:400;}
+.bg-cofee-dark{background-color: #4B1B0D;}
+.color-light1{color:#101828;}
+.brd-light1{border:1px solid #EAECF0;}
+.opacity60{filter: alpha(opacity=60);-moz-opacity: .60;opacity: .60;}
+.dvOverLay{position: absolute;top: 0px;left: 0px;Width:100%;height: 100%;_height: 100%;background-color: #101828;background-position: center 400px;z-index: 9999;filter: alpha(opacity=70);-moz-opacity: .70;opacity: .70;}
+.link-text{text-decoration: none;color:inherit}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button {-webkit-appearance: none; margin: 0;}/* Chrome, Safari, Edge, Opera */
+
+#spProcess{position:fixed;bottom:20px;left:20px;z-index: 9999;font-size: 20px;color: #125580;display: none;}
+/****** HOME PAGE *****/
+/*** Header CSS Start ***/
+.header1{height:60px;background-color: #125580;}
+a.link-hightlight{text-decoration: none;}
+a.link-hightlight:hover {text-decoration: underline !important;}
+header .header_logo_area {display: flex;flex-wrap: wrap;align-items: center;justify-content: space-between;}
+.header_logo{font-size:24px;font-weight:600;color:white;text-decoration: none;line-height: 24px;}
+.header_logo img{height:96%;}
+.logo-cicle{border-radius: 50%;background-color: white;border:1px solid #EAECF0;display: inline-block;text-align: center;padding:6px;width:45px;height:45px;}
+/*** Header CSS End ***/
+.mainBgColor{min-height: calc(100vh - 200px);}
+
+body .stickyHeader th {position: sticky;top: -1px;z-index:99;}
+body .stickyHeader.stickyHeaderWht th {background:white;}
+body .stickyHeader.stickyHeadergry th {background:#125580;color:#ffffff;}
+
+.card-cust-title{padding:4px var(--bs-card-spacer-x);}
+.card-green{border:2px solid #28a828;}
+.card-green .card-cust-title{background-color: #28a828;color:White;}
+.card-red{border:2px solid #db4949;}
+.card-red .card-cust-title{background-color: #db4949;color:White;}

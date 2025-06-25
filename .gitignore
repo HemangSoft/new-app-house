@@ -1,0 +1,20 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+npm-debug.log*
+.env
+
+# production
+/build
+
+# misc
+.DS_Store
+Thumbs.db
+package-lock.json
+/.vscode/*
+
+/logs/*
+/tmp/*
+/public/tempfile/*
+/public/itembarcode/*

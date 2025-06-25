@@ -1,0 +1,157 @@
+<html lang="en">
+   <head>
+      <meta charset="utf-8">
+      <link rel="icon" href="/favicon.ico">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta name="theme-color" content="#000000">
+      <meta name="description" content="Netsuite Inventory Adjustment Portal">
+      <link rel="apple-touch-icon" href="/logo192.png">
+      <link rel="stylesheet" href="/css/bootstrap.min.css">
+      <link rel="stylesheet" href="/css/common.css?t=100">
+
+      <title>Netsuite Inventory Adjustment Portal</title>
+   </head>
+   <body>
+      <div id="root">
+         <header class="header1 border-bottom container-fluid pt-2 pb-2 position-relative">
+            <div class="row align-items-center">
+               <div class="col-12">
+                  <div class="header_logo_area">
+                     <a class="header_logo" href="/">
+                        <div class="footer_logo text-center">
+                           <div class="logo-cicle"><img src="/images/logo.png" alt=""></div>
+                           <span>Dora's Naturals</span>
+                        </div>
+                     </a>
+                  </div>
+               </div>
+            </div>
+         </header>
+         <div id="mainBody">
+            <div class="mainBgColor">
+               <div class="container-fluid p-3 pb-0 pt-2">
+                  <div class="text-center">
+                     <div class="fnt30-w800">Warehouse Adjustment Dashboard</div>
+                  </div>
+                  <div class="mt-2">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="card card-green">
+                                <div class="card-img-top fnt24 card-cust-title">Payload Franky (Supabase to Netsuite) </div>
+                                <div class="card-body p-2">
+                                    <div class="overflow-auto pt-0 mt-0" style="max-height: calc(-160px + 95vh); min-height: calc(-160px + 95vh);">
+                                        <div class="container">
+                                            <div class="row">
+                                                <div class="col-2"><label for="payloadDate" class="col-form-label">Date</label></div>
+                                                <div class="col-8">
+                                                    <input type="date" id="payloadDate" class="form-control" style="width:140px" />
+                                                </div>
+                                            </div>
+
+                                            <div class="row mt-1">
+                                                <div class="col-2">Category</div>
+                                                <div class="col-10">
+                                                    <div class="position-relative w-100">
+                                                        <div class="position-absolute" style="right: 0px;top: -26px;">
+                                                            <button type="button" class="btn btn-link btn-sm" onclick="selectCategory(1)">Select All</button>|<button type="button" class="btn btn-link btn-sm" onclick="selectCategory(0)">Uncheck All</button>
+                                                        </div>
+                                                    </div>
+                                                    <div id="dvCategory" style="min-height:200px;max-height:200px;overflow-y:auto;border:1px solid #cacaca;padding:6px;">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row mt-1">
+                                                <div class="col-2"></div>
+                                                <div class="col-10">
+                                                   <button type="button" class="btn btn-primary btn-sm" onclick="transferCategoryToNetsuite()">Transfer to NetSuite</button>
+                                                </div>
+                                            </div>
+                                            <div id="dvInvAdjLog" class="mt-1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card card-red">
+                                <div class="card-img-top fnt24 card-cust-title">Supabase Franky Log</div>
+                                <div class="card-body p-2">
+                                    <div class="overflow-auto pt-0 mt-0" style="max-height: calc(-160px + 95vh); min-height: calc(-160px + 95vh);">
+                                        <div class="container">
+                                            <div class="row">
+                                                <div class="col-2"><label for="logStartDate" class="col-form-label">Start Date</label></div>
+                                                <div class="col-8">
+                                                    <input type="date" id="logStartDate" class="form-control d-inline-block" style="width:140px" />
+                                                    <input type="time" id="logStartTime" class="form-control d-inline-block" style="width:140px" />
+                                                </div>
+                                            </div>
+                                            <div class="row pt-1">
+                                                <div class="col-2"><label for="logEndDate" class="col-form-label">End Date</label></div>
+                                                <div class="col-8">
+                                                    <input type="date" id="logEndDate" class="form-control d-inline-block" style="width:140px" />
+                                                    <input type="time" id="logEndTime" class="form-control d-inline-block" style="width:140px" />
+                                                </div>
+                                            </div>
+                                            <div class="row pt-1">
+                                                <div class="col-2"></div>
+                                                <div class="col-4">
+                                                    <button type="button" class="btn btn-primary btn-sm" onclick="searchFrankyLog()">Search</button>
+                                                </div>
+                                                <div class="col-6">
+                                                    <div style="width:180px" class="ms-auto">
+                                                        <select id="ddlMessageFor" class="form-select">
+                                                            <option value="issues">Only issues</option>
+                                                            <option value="success">Only success</option>
+                                                            <option value="both">All</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="row pt-1">
+                                                <div class="col-12">
+                                                   <table id="tblFLog" class="table table-hover stickyHeader stickyHeadergry">
+                                                        <thead>
+                                                            <tr class="fnt14-w500">
+                                                                <th>#</th>
+                                                                <th style="width:110px">Inventory Date</th>
+                                                                <th>Item ID</th>
+                                                                <th>Quantity</th>
+                                                                <th>message</th>
+                                                                <th>Created at</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                     
+                  </div>
+                  <div class="footer-main"></div>
+               </div>
+            </div>
+         </div>
+         <span id="spProcess">
+            <i class="fa fa-spinner fa-spin fa-4x"></i>
+        </span>
+      </div>
+      <script src="/js/jquery-3.7.0.min.js"></script>
+      <script src="/js/bootstrap.bundle.min.js"></script>
+      <script src="/js/font-awesome.js"></script>
+      <script src="/js/invadjustment.js?t=101"></script>
+      <script>
+         
+      </script>
+   </body>
+</html>

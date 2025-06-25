@@ -1,0 +1,31 @@
+{
+  "name": "ai-erms-order.dorasnaturals.net",
+  "description": "AI - ERMS auto order import portal",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "server": "node app.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "axios": "^1.8.1",
+    "body-parser": "^1.20.3",
+    "compression": "^1.8.0",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "oauth-1.0a": "^2.2.6"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
