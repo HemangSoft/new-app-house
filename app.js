@@ -14,6 +14,9 @@ const Errors = require('./server/helpers/errors');
 const port = config.APP_PORT;
 const sslPort = config.SSL_PORT||'';
 global.appRoot = path.resolve(__dirname);
+global.categoryProcess = {};
+
+const clientBuildPath = path.join(__dirname.replace("\server","") ,'client/build');
 
 const app = express();
 app.set('port', port);
@@ -22,7 +25,7 @@ app.use(bodyParser.json({limit: '25mb'})); //Added to avoid request entity too l
 app.use(bodyParser.urlencoded({limit: '25mb',extended: true})); //Added to avoid request entity too large error
 app.use(bodyParser.urlencoded({extended: true})); // for parsing x-www-form-urlencoded
 
-//app.use(express.static(path.join(__dirname, 'build'), {maxAge: 31557600000}));
+app.use(express.static(clientBuildPath, {maxAge: 31557600000}));
 app.use(express.static(path.join(__dirname, 'public'), {maxAge: 31557600000}));
 
 /**
@@ -42,18 +45,6 @@ app.all('/*', function(req, res, next) {
 // authorized /v1 route
 app.all('/api/v1/*', [require('./server/middlewares/validate')]);
 app.use('/api', require('./server/routes'));
-app.get('/dashboard',(req, res) =>{
-    let filePath = global.appRoot + '/public/invadj.html';
-    console.log(filePath);
-    fs.readFile(filePath, (err, data) => {
-        if (err) {
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.end('Error loading file');
-            return;
-        }
-        res.end(data);
-    });
-})
 
 app.get('*', (req, res) => {
     let url = req.url.toLowerCase();
@@ -65,8 +56,7 @@ app.get('*', (req, res) => {
         console.log(`\x1b[33mInvalid URL "${(req.originalUrl?req.originalUrl:'')}" Time : ${new Date()} \x1b[0m`);
     }
     else{
-        // res.sendFile(path.resolve(__dirname, 'build/app.html'));
-        res.status(200).send("<h1>Welcome</h1>")
+        res.sendFile(clientBuildPath + '/app.html');
     }
 });
 

@@ -68,6 +68,10 @@ function selectCategory(selectAll){
 
 function transferCategoryToNetsuite(){
     let selectedCategory = [];
+    if($("#payloadDate").val() ==""){
+        alert("Please select date");
+        return;
+    }
     $("#dvCategory input[type='checkbox']:checked").each(function(){
         selectedCategory.push($(this).val());
     });
@@ -115,7 +119,6 @@ function formatDateToYMDHM(isoDateStr) {
 }
 
 function searchFrankyLog(){
-    //logStartDate  logStartTime logEndDate logEndTime
     if($("#logStartDate").val() ==""){
         alert("Please select start date");
         return;
@@ -127,7 +130,7 @@ function searchFrankyLog(){
     let startTime = $("#logStartTime").val();
     let endTime = $("#logEndTime").val();
     if(startTime ==""){
-        startTime = '12:00';
+        startTime = '00:00';
     }
     if(endTime ==""){
         endTime = '23:59';
@@ -142,7 +145,7 @@ function searchFrankyLog(){
         let finalHTML='';
         if(res && res.data){
             res.data.forEach(function (d,index){
-                finalHTML +="<tr>"+ 
+                finalHTML +="<tr class='"+ (d.message == 'success'?'tr-msg':'tr-err') +"'>"+
                             " <td>"+ (index + 1 ) + "</td>" +  
                             " <td>"+ d.inventory_date +"</td>" + 
                             " <td>"+ d.item_id +"</td>" + 
@@ -153,9 +156,54 @@ function searchFrankyLog(){
             })
         }
         $("#tblFLog tbody").html(finalHTML);
+        filterLogResult();
         $("#spProcess").hide();
     }).fail(function(xhr, status, error) {
         alert("Some Error occur while processing, Please try again" );
         $("#spProcess").hide();
+    });
+}
+
+function filterLogResult(){
+    let filterType = $("#ddlMessageFor").val();
+    if(filterType == 'issues'){
+        $("#tblFLog tbody tr.tr-msg").addClass("d-none");
+        $("#tblFLog tbody tr.tr-err").removeClass("d-none");
+    }
+    else if(filterType == 'success'){
+        $("#tblFLog tbody tr.tr-msg").removeClass("d-none");
+        $("#tblFLog tbody tr.tr-err").addClass("d-none")
+    }
+    else{
+        $("#tblFLog tbody tr").removeClass("d-none");
+    }
+
+    $("#tblFLog tbody tr:not(.d-none)").each(function (index){
+        $(this).find("td:first-child").html(index + 1);
+    })
+}
+
+function ImportFrankyProcess(){
+    if($("#transferDate").val() ==""){
+        alert("Please select date");
+        return;
+    }
+    $("#spProcess").show();
+    $.ajax({
+        url: "/api/v1/netsuite/importFrankyProcess",
+        type:"POST",
+        data: {"date": $("#transferDate").val().replace(/-/g,'')}
+    }).done(function(res) {
+        alert("Import Franky Process started");
+        $("#spProcess").hide();
+    }).fail(function(xhr, status, error) {
+      let err = JSON.parse(xhr.responseText);
+      if(err.message){
+        alert(err.message)
+      }
+      else{
+        alert("Some Error occur while processing, Please try again" );
+      }
+      $("#spProcess").hide();
     });
 }

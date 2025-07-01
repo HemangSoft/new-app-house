@@ -39,7 +39,7 @@ body{font-family:'Satoshi-Variable';font-size: 14px;color: #000000;}
 .link-text{text-decoration: none;color:inherit}
 input::-webkit-outer-spin-button,input::-webkit-inner-spin-button {-webkit-appearance: none; margin: 0;}/* Chrome, Safari, Edge, Opera */
 
-#spProcess{position:fixed;bottom:20px;left:20px;z-index: 9999;font-size: 20px;color: #125580;display: none;}
+#spProcess{position:fixed;bottom:20px;left:20px;z-index: 9999;font-size: 20px;color: #125580;}
 /****** HOME PAGE *****/
 /*** Header CSS Start ***/
 .header1{height:60px;background-color: #125580;}
@@ -61,3 +61,4 @@ body .stickyHeader.stickyHeadergry th {background:#125580;color:#ffffff;}
 .card-green .card-cust-title{background-color: #28a828;color:White;}
 .card-red{border:2px solid #db4949;}
 .card-red .card-cust-title{background-color: #db4949;color:White;}
+.card-95vh-height{max-height: calc(-160px + 95vh); min-height: calc(-160px + 95vh);}

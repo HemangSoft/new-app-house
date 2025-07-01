@@ -1,12 +1,15 @@
 'use strict'
 const axios= require('axios');
 const dayjs = require('dayjs');
+const https = require('https');
+const advancedFormat = require("dayjs/plugin/advancedFormat");
 const fs = require('fs');
 const config = require('..//..//helpers//config.js');
 const Util = require('..//..//helpers//util.js');
 const DBSuperBase = require('..//..//helpers/db-supabase.js');
 const commonMaster = require('./commonmaster.js');
 const DEFAULT_API_SERVER = Util.getDefaultAPIServer();
+dayjs.extend(advancedFormat);
 
 function inventoryAdjustmentPayload(){
     let payloadStructure = { 
@@ -66,6 +69,7 @@ exports.inventoryAdjustment = async (req, res) => {
     let inventorydate = (req.body.inventorydate||'').replace(/-/g,'');
     let category = req.body.category||'';
     let categoryList = req.body.categoryList||[];
+    let sendAJAXUpdate = req.body.ajaxupdate||0;
     let finalCategoryList = [];
     if(category != ""){
         finalCategoryList.push(category);
@@ -144,8 +148,17 @@ exports.inventoryAdjustment = async (req, res) => {
         return res.status(400).send({"status":400,"error":"Error while fetching inventoryNumber data from netsuite", netSuiteErr2});
     }
 
+    let global_variable ='';
+    let totalCategory = allCategory.length;
+    if(sendAJAXUpdate == 1){
+        global_variable = Util.generateUniqueId(12);
+        global.categoryProcess[global_variable] = {"total":totalCategory,"completed":0,"start":new Date().getTime()};
+        res.status(200).send({"status":200,"total":totalCategory,"completed":0,"name":global_variable})
+    }
+
     //Step 5 => setup log for each category
-    for(let categoryLoop=0;categoryLoop<allCategory.length;categoryLoop++){
+    //Step 5 => setup log for each category
+    for(let categoryLoop=0;categoryLoop<totalCategory;categoryLoop++){
         let currentCategory = allCategory[categoryLoop];
         let itemData = ermsInventoryData.filter((x)=>x.category == currentCategory);
         console.log("setup payload for category "+  currentCategory + " ", new Date());
@@ -162,6 +175,7 @@ exports.inventoryAdjustment = async (req, res) => {
             let casePackSize = parseInt(itemData[loop].case_pack);
             if(isNaN(casePackSize)) casePackSize= 1;
             
+            let netSuiteItemInActive ='F';
             let netSuiteBalance = 0;
             let itemIndex = netSuiteItems.findIndex((x) => x.itemid == itemId);
             if(itemIndex > -1){
@@ -173,8 +187,11 @@ exports.inventoryAdjustment = async (req, res) => {
                     netSuiteBalance = netSuiteQty/ netSuiteCasePack;
                 }
 
+                netSuiteItemInActive = netSuiteItems[itemIndex].isinactive;
                 itemInternalID = parseInt(netSuiteItems[itemIndex].id||0);
                 if(isNaN(itemInternalID)) itemInternalID= 1;
+
+               // console.log(" ",JSON.stringify(netSuiteItems[itemIndex]) ," \n netSuiteQty ", netSuiteQty , " netSuiteCasePack ", netSuiteCasePack , " NetsuiteBal ", netSuiteBalance , " newQty", newQty ,  " diff", newQty - netSuiteBalance);
             }
             
             //netsuite 2000 and supabase 1850 then adjustment = 1850 - 2000 = -150
@@ -192,11 +209,12 @@ exports.inventoryAdjustment = async (req, res) => {
                 }
             }
 
-            if(itemInternalID == 0 || itemIndex == -1 || totalAdjQty == 0 || (totalAdjQty < 0 && inventoryNumberIndex == -1)){
+            if(itemInternalID == 0 || itemIndex == -1 || totalAdjQty == 0 || (totalAdjQty < 0 && inventoryNumberIndex == -1) || netSuiteItemInActive == 'T'){
                 let itemError = 'Item# '+ itemId + ' '+ (itemInternalID ==0?" => missing item internal ID":"")  +
                             (itemIndex == -1?" => missing item at netsuite level":"") +
                             (totalAdjQty == 0?" => No adjustment required":"") +
-                            ((totalAdjQty < 0 && inventoryNumberIndex == -1)?" => Serial/Lot Number required defined for negative adjustment":"")
+                            (netSuiteItemInActive == 'T'?" => netsuite level Item is inactive":"") +
+                            ((totalAdjQty < 0 && inventoryNumberIndex == -1)?" => Serial/Lot Number required for negative adjustment":"")
                 //console.log(itemError);
                 itemErrors.push({"inventory_date": inventorydate,"item_id":itemId,"quantity":newQty,"message":itemError});
                 continue;
@@ -271,17 +289,21 @@ exports.inventoryAdjustment = async (req, res) => {
                     finalResponse.push({"status":400,"category": currentCategory,"error":"Error while saving item adjustment -"+ e?.message,"message":"","issueItems": itemErrors,"payload":payload});
                 }
             }
+            await Util.customDelay(1000);
         }
         else{
             finalResponse.push({"status":200,"category": currentCategory,"error":"","message":"No adjustment for category","issueItems": itemErrors});
         }
 
         if(invAPISuccess == false){
-            itemErrors.forEach((d) => {
-                if(d.message == 'success'){
-                    d.message = 'Netsuite API Request failed'
-                }
-            });
+            // itemErrors.forEach((d) => {
+            //     if(d.message == 'success'){
+            //         d.message = 'Netsuite API Request failed'
+            //     }
+            // });
+            if(itemForAdjustment.length > 0){
+                itemErrors = [{"inventory_date": inventorydate,"item_id":'0',"quantity":'0',"message":"CC - Netsuite API Request failed for Category "+ currentCategory}];
+            }
         }
 
         //Save each item log for request
@@ -290,8 +312,22 @@ exports.inventoryAdjustment = async (req, res) => {
         if(errLog){
             console.log(errLog);
         }
+        global.categoryProcess[global_variable].completed = (categoryLoop + 1);
+        //console.log(" global_variable ", global_variable , " ", global.categoryProcess[global_variable])
     }
-    return res.status(200).send({"message":"OK","category_response":finalResponse});
+    if(sendAJAXUpdate != 1){
+        return res.status(200).send({"message":"OK","category_response":finalResponse});
+    }
+}
+
+exports.inventoryAdjustmentProgress = async(req,res)=>{
+    let name = (req.body.name||'');
+    if(global.categoryProcess[name]){
+        return res.status(200).send({"status":200,"data":global.categoryProcess[name]});
+    }
+    else{
+        return res.status(400).send({"status":400,"message":"Import progress data missing"});
+    }
 }
 
 exports.inventoryRelief = async(req,res)=>{
@@ -531,4 +567,63 @@ exports.inventoryAdjustmentLog = async (req, res) => {
     else{
         return res.status(200).send({"status":200,"data":data});
     }
+}
+
+exports.importFrankyProcess = async(req,res)=>{
+    let inventorydate = (req.body.date||'').replace(/-/g,'');
+    let inventorydateDayjs;
+    if(inventorydate == ''){
+        return res.status(400).json({
+            "status": 400,
+            "message": "Please provide inventory date parameter"
+        });
+    }
+    else{
+        inventorydateDayjs = dayjs(inventorydate,'YYYYMMDD');
+        if(inventorydateDayjs.format('YYYYMMDD') != inventorydate){
+            return res.status(400).json({
+                "status": 400,
+                "message": "Please provide valid date parameter"
+            });
+        }
+    }
+
+    let Agentic_WebhookURL = req.query.url;
+    let result = {"channel":[],"brands":[],"orders_location":{"orders":0,"locations":0}};
+    // const secretKey = 'gcZbgtLXT4NOMc4iJlDDVvN7Rrqbavcw';
+    // const jwtpayload = {
+    //   iss: 'node-client',
+    //   sub: 'api-access',
+    //   iat: Math.floor(Date.now() / 1000),
+    //   exp: Math.floor(Date.now() / 1000) + 3600 // Token valid for 1 hour
+    // };
+    // const token = jwt.encode(jwtpayload, secretKey, 'HS256');
+
+    // Request options
+    const agent = new https.Agent({  
+     rejectUnauthorized: false  
+    });
+    axios.defaults.httpsAgent = agent;
+    /* month_year: June 2025.xlsx
+        month_day: June 26
+        full_trunc: 20250626
+        full_date: June 26th 2025*/
+
+    let payload ={
+        month_year: inventorydateDayjs.format("MMMM YYYY") + ".xlsx",
+        month_day: inventorydateDayjs.format("MMMM DD"),
+        full_trunc: inventorydateDayjs.format("YYYYMMDD"),
+        full_date: inventorydateDayjs.format("MMMM Do YYYY")
+    }
+
+    try{
+        const response = await axios.post(Agentic_WebhookURL, payload);
+        //console.log(response);
+    }
+    catch(e){
+        console.log(e);
+        return res.status(400).send({"status":"400","message":"Error while calling agentic URL"});
+    }
+    
+    return res.status(200).send({"status":"200","message":"OK"});
 }
