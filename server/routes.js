@@ -16,5 +16,6 @@ router.post('/v1/netsuite/inventoryadjustmentprogress', netSuiteInvAdjCtrl.inven
 router.post('/v1/netsuite/inventoryrelief', netSuiteInvAdjCtrl.inventoryRelief);
 router.post('/v1/netsuite/inventoryadjustmentlog', netSuiteInvAdjCtrl.inventoryAdjustmentLog);
 router.post('/v1/netsuite/importFrankyProcess', netSuiteInvAdjCtrl.importFrankyProcess);
+router.post('/v1/netsuite/warehousecutProcess', netSuiteInvAdjCtrl.warehouseCutProcess);
 
 module.exports = router;

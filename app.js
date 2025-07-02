@@ -16,7 +16,7 @@ const sslPort = config.SSL_PORT||'';
 global.appRoot = path.resolve(__dirname);
 global.categoryProcess = {};
 
-const clientBuildPath = path.join(__dirname.replace("\server","") ,'client/build');
+const clientBuildPath = path.join(__dirname.replace("\server","") ,'build');
 
 const app = express();
 app.set('port', port);
@@ -26,7 +26,7 @@ app.use(bodyParser.urlencoded({limit: '25mb',extended: true})); //Added to avoid
 app.use(bodyParser.urlencoded({extended: true})); // for parsing x-www-form-urlencoded
 
 app.use(express.static(clientBuildPath, {maxAge: 31557600000}));
-app.use(express.static(path.join(__dirname, 'public'), {maxAge: 31557600000}));
+//app.use(express.static(path.join(__dirname, 'public'), {maxAge: 31557600000}));
 
 /**
  * Log url
@@ -56,7 +56,7 @@ app.get('*', (req, res) => {
         console.log(`\x1b[33mInvalid URL "${(req.originalUrl?req.originalUrl:'')}" Time : ${new Date()} \x1b[0m`);
     }
     else{
-        res.sendFile(clientBuildPath + '/app.html');
+        res.sendFile(clientBuildPath + '/index.html');
     }
 });
 

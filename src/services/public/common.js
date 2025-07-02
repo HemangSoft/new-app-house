@@ -57,7 +57,6 @@ export async function inventoryAdjustmentProgress(inventorydate,name) {
     });
 }
 
-
 export async function importFrankyProcess(importDate) {
   return apiClient
     .post('/v1/netsuite/importFrankyProcess', {
@@ -65,7 +64,23 @@ export async function importFrankyProcess(importDate) {
     })
     .then(response => {
         if (response && response.data) {
-            return response.data.data
+            return response.data
+        }
+        return false
+    })
+    .catch(err => {
+        console.log(err);
+    });
+}
+
+export async function warehouseCutProcess(importDate) {
+  return apiClient
+    .post('/v1/netsuite/warehousecutProcess', {
+        "date": importDate.replace(/-/g,''),
+    })
+    .then(response => {
+        if (response && response.data) {
+            return response.data
         }
         return false
     })

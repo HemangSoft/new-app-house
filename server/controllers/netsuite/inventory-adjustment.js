@@ -569,6 +569,7 @@ exports.inventoryAdjustmentLog = async (req, res) => {
     }
 }
 
+
 exports.importFrankyProcess = async(req,res)=>{
     let inventorydate = (req.body.date||'').replace(/-/g,'');
     let inventorydateDayjs;
@@ -588,17 +589,7 @@ exports.importFrankyProcess = async(req,res)=>{
         }
     }
 
-    let Agentic_WebhookURL = req.query.url;
-    let result = {"channel":[],"brands":[],"orders_location":{"orders":0,"locations":0}};
-    // const secretKey = 'gcZbgtLXT4NOMc4iJlDDVvN7Rrqbavcw';
-    // const jwtpayload = {
-    //   iss: 'node-client',
-    //   sub: 'api-access',
-    //   iat: Math.floor(Date.now() / 1000),
-    //   exp: Math.floor(Date.now() / 1000) + 3600 // Token valid for 1 hour
-    // };
-    // const token = jwt.encode(jwtpayload, secretKey, 'HS256');
-
+    let Agentic_WebhookURL = config.AGENTIC_FRANKY_IMPORT;
     // Request options
     const agent = new https.Agent({  
      rejectUnauthorized: false  
@@ -621,8 +612,50 @@ exports.importFrankyProcess = async(req,res)=>{
         //console.log(response);
     }
     catch(e){
-        console.log(e);
-        return res.status(400).send({"status":"400","message":"Error while calling agentic URL"});
+        console.log(e.message);
+        return res.status(400).send({"status":"400","message":"Error while calling agentic workflow url"});
+    }
+    
+    return res.status(200).send({"status":"200","message":"OK"});
+}
+
+exports.warehouseCutProcess = async(req, res)=>{
+    let inventorydate = (req.body.date||'').replace(/-/g,'');
+    let inventorydateDayjs;
+    if(inventorydate == ''){
+        return res.status(400).json({
+            "status": 400,
+            "message": "Please provide date parameter"
+        });
+    }
+    else{
+        inventorydateDayjs = dayjs(inventorydate,'YYYYMMDD');
+        if(inventorydateDayjs.format('YYYYMMDD') != inventorydate){
+            return res.status(400).json({
+                "status": 400,
+                "message": "Please provide valid date parameter"
+            });
+        }
+    }
+
+    let Agentic_WebhookURL = config.AGENTIC_WAREHOUSE_CUT;
+
+    // Request options
+    const agent = new https.Agent({rejectUnauthorized: false});
+    axios.defaults.httpsAgent = agent;
+
+    let payload ={
+        full_trunc: inventorydateDayjs.format("YYYYMMDD"),
+        full_date: inventorydateDayjs.format("MMMM Do YYYY")
+    }
+
+    try{
+        const response = await axios.post(Agentic_WebhookURL, payload);
+        //console.log(response);
+    }
+    catch(e){
+        console.log(e.message);
+        return res.status(400).send({"status":"400","message":"Error while calling agentic workflow url"});
     }
     
     return res.status(200).send({"status":"200","message":"OK"});
