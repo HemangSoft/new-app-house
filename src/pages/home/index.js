@@ -13,11 +13,10 @@ const Home = (props) =>{
     const { setIsLoading  } = useSite();
     const [ inventoryDate, setInventoryDate] = useState('');
     const [ frankyCategory, setFrankyCategory] = useState([])
-    const [ importDate, setImportDate] = useState('');
-    const [ cutDate, setCutDate] = useState('');
     
     const progressInfoRef = useRef({showProgress:false,total:0,completed:0 ,syncPercentage:0, name:''});
-    const [syncProcessInfo,setSyncProcessInfo]= useState({syncPercentage:0,showProgress:false});
+    const [syncProcessInfo,setSyncProcessInfo]= useState({syncPercentage:0,showProgress:false,total:0});
+    const [syncProcessName,setSyncProcessName]= useState('');
 
     const [ logStartDate, setLogStartDate] = useState('');
     const [ logStartTime, setLogStartTime] = useState('');
@@ -30,8 +29,6 @@ const Home = (props) =>{
     const fillData = ()=>{
         let todayDate = dayjs().format("YYYY-MM-DD");
         setInventoryDate(todayDate);
-        setImportDate(todayDate);
-        setCutDate(todayDate);
         fillCategory(todayDate);
     }
 
@@ -72,12 +69,6 @@ const Home = (props) =>{
         if(fieldName === 'inventoryDate'){
             setInventoryDate(searchValue);
             fillCategory(searchValue);
-        }
-        else if(fieldName === 'importDate'){
-            setImportDate(searchValue);
-        }
-        else if(fieldName === 'cutDate'){
-            setCutDate(searchValue);
         }
         else if(fieldName === 'logStartDate'){
             setLogStartDate(searchValue);
@@ -136,7 +127,8 @@ const Home = (props) =>{
             if(result.total > 0){
                 let progressPercentage = {showProgress:true,total:result.total,completed:result.completed ,syncPercentage:0, name:result.name};
                 progressInfoRef.current = progressPercentage;
-                setSyncProcessInfo(progressPercentage);
+                setSyncProcessInfo({showProgress:true,syncPercentage:0,total:0});
+                setSyncProcessName("Transfer CC")
                 updateCategoryImportProgress();
             }
         }
@@ -144,10 +136,10 @@ const Home = (props) =>{
     }
 
     const updateCategoryImportProgress = ()=>{
-        setTimeout(()=>{getProcessAJAX()},5000);
+        setTimeout(()=>{getProcessAJAXCC()},5000);
     }
 
-    const getProcessAJAX = async()=>{
+    const getProcessAJAXCC = async()=>{
         let progressPercentage =  {...progressInfoRef.current};
         try{
             const data = await publicCommonService.inventoryAdjustmentProgress(inventoryDate,progressInfoRef.current.name);
@@ -168,23 +160,27 @@ const Home = (props) =>{
                 else{
                    toast.success("Inventory adjustment transfer completed");
                    progressInfoRef.current = {showProgress:false,total:0,completed:0 ,syncPercentage:0, name:''};
-                   setSyncProcessInfo({syncPercentage:0,showProgress:false});
+                   setSyncProcessInfo({syncPercentage:0,showProgress:false,total:0});
+                   setSyncProcessName('');
                 }
             }
         }
         catch{
             toast.error("Import Progress monitor failed");
+            setSyncProcessName('');
+            setSyncProcessInfo({syncPercentage:0,showProgress:false,total:0});
+            progressInfoRef.current = {showProgress:false,total:0,completed:0 ,syncPercentage:0, name:''};
         }
     }
 
     const importFrankyProcess = async()=>{
-        if(importDate ===""){
-            toast.error('Please select import date');
+        if(inventoryDate ===""){
+            toast.error('Please select date');
             return;
         }
 
         setIsLoading(true);
-        const result = await publicCommonService.importFrankyProcess(importDate);
+        const result = await publicCommonService.importFrankyProcess(inventoryDate);
         if(result && result.message){
             toast.success("Import Franky Process started");
         }
@@ -192,17 +188,65 @@ const Home = (props) =>{
     }
 
     const warehouseCutProcess = async()=>{
-        if(cutDate ===""){
+        if(inventoryDate ===""){
             toast.error('Please select load date');
             return;
         }
+
+        let cutDate = dayjs(inventoryDate,'YYYYMMDD').add(-1,'day').format('YYYYMMDD');
 
         setIsLoading(true);
         const result = await publicCommonService.warehouseCutProcess(cutDate);
         if(result && result.message){
             toast.success("Warehouse Cut Process started");
+            if(result.total === -1){
+                let progressPercentage = {showProgress:true,total:result.total,completed:0,syncPercentage:0,name:result.name};
+                progressInfoRef.current = progressPercentage;
+                setSyncProcessInfo({showProgress:true,syncPercentage:0,total: -1});
+                setSyncProcessName("Transfer IR");
+                updateIRImportProgress();
+            }
         }
         setIsLoading(false);
+    }
+
+    const updateIRImportProgress = ()=>{
+        setTimeout(()=>{getProcessAJAXIR()},5000);
+    }
+
+    const getProcessAJAXIR = async()=>{
+        let progressPercentage =  {...progressInfoRef.current};
+        try{
+            const data = await publicCommonService.inventoryReliefProgress(inventoryDate,progressInfoRef.current.name);
+            if(data){
+                let total = data.total;
+                let completed = data.completed;
+
+                let percentage = parseInt(((completed/ total) * 100).toString());
+                if(percentage > 100) percentage = 100;
+
+                if(completed < total || total === -1){
+                    progressPercentage.completed = completed;
+                    progressPercentage.syncPercentage = percentage;
+                    progressPercentage.total = total;
+                    progressInfoRef.current = progressPercentage;
+                    setSyncProcessInfo({...progressPercentage,total:percentage});
+                    updateIRImportProgress();
+                } 
+                else{
+                   toast.success("Inventory Relief transfer completed");
+                   progressInfoRef.current = {showProgress:false,total:0,completed:0 ,syncPercentage:0, name:''};
+                   setSyncProcessInfo({syncPercentage:0,showProgress:false,total:0});
+                   setSyncProcessName('');
+                }
+            }
+        }
+        catch{
+            toast.error("Import Relief monitor failed");
+            setSyncProcessName('');
+            setSyncProcessInfo({syncPercentage:0,showProgress:false,total:0});
+            progressInfoRef.current = {showProgress:false,total:0,completed:0 ,syncPercentage:0, name:''};
+        }
     }
 
     const searchFrankyLog  = async()=>{
@@ -272,11 +316,11 @@ const Home = (props) =>{
         <div className="mt-2">
             <div className="row">
                 <div className="col-6">
-                    <div className="overflow-auto pt-0 mt-0" style={{minHeight:"calc(-160px + 95vh)"}}>
+                    <div className="overflow-auto pt-0 mt-0">
                         <div className="card card-green">
                             <div className="card-img-top fnt24 card-cust-title">Payload Franky (Supabase to Netsuite) </div>
                             <div className="card-body p-2">
-                                    <div className="container">
+                                    <div className="container" style={{minHeight:"calc(-160px + 95vh)"}}>
                                         <div className="row">
                                             <div className="col-2"><label className="col-form-label">Date</label></div>
                                             <div className="col-8">
@@ -289,7 +333,7 @@ const Home = (props) =>{
                                             <div className="col-10">
                                                 <div className="position-relative w-100">
                                                     <div className="position-absolute" style={{right:"0px",top:"-26px"}}>
-                                                        <button type="button" className="btn btn-link btn-sm" onClick={()=> selectUnSelectAllCategory(true)}>Select All</button>|<button type="button" className="btn btn-link btn-sm"  onClick={()=> selectUnSelectAllCategory(false)}>Uncheck All</button>
+                                                        <button type="button" className="btn btn-link btn-sm" onClick={()=> selectUnSelectAllCategory(true)}>Select All</button>|<button type="button" className="btn btn-link btn-sm"  onClick={()=> selectUnSelectAllCategory(false)}>None</button>
                                                     </div>
                                                 </div>
                                                 <div id="dvCategory" style={{minHeight:"300px",maxHeight:"300px",overflowY:"auto","border":"1px solid #cacaca","padding":"6px"}}>
@@ -305,12 +349,22 @@ const Home = (props) =>{
                                             </div>
                                         </div>
 
-                                        <div className="row mt-1 align-items-center">
+                                        <div className="row mt-2 align-items-center">
                                             <div className="col-2"></div>
                                             <div className="col-3">
-                                                <button type="button" className="btn btn-primary btn-sm" onClick={()=> transferCategoryToNetsuite()}>Transfer to NetSuite</button>
+                                                <button type="button" className="btn btn-primary btn-sm w-100" onClick={()=> transferCategoryToNetsuite()}>Transfer to NetSuite</button>
                                             </div>
-                                            <div className="col-6">
+                                            <div className="col-3">
+                                                <button type="button" className="btn btn-primary btn-sm w-100" onClick={()=> importFrankyProcess()}>Import Franky</button>
+                                            </div>
+                                            <div className="col-3">
+                                                <button type="button" className="btn btn-primary btn-sm w-100" onClick={()=> warehouseCutProcess()}>Warehouse Cuts IR</button>
+                                            </div>
+                                        </div>
+
+                                        <div className="row mt-2 align-items-center" style={{minHeight:"25px"}}>
+                                            <div className="col-2"><h6>{syncProcessName}</h6></div>
+                                            <div className="col-10">
                                                 {syncProcessInfo.showProgress === true &&
                                                     <div className="row align-items-center">
                                                         <div className="col-9">
@@ -322,47 +376,14 @@ const Home = (props) =>{
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <div className="col-3">{progressInfoRef.current.completed} / { progressInfoRef.current.total}</div>
+                                                        <div className="col-3">
+                                                            {syncProcessInfo.total > -1 && <>{progressInfoRef.current.completed} / { progressInfoRef.current.total}</>}
+                                                            {syncProcessInfo.total === -1 && <><i className="fa fa-spin fa-spinner fa-1x" /> Waiting...</>}
+                                                        </div>
                                                     </div>}
                                             </div>
                                         </div>
                                     </div>
-                            </div>
-                        </div>
-
-                        <div className="card card-green mt-2">
-                            <div className="card-img-top fnt24 card-cust-title">Import Franky</div>
-                            <div className="card-body p-2">
-                                <div className="container">
-                                    <div className="row">
-                                        <div className="col-2"><label className="col-form-label">Import Date</label></div>
-                                        <div className="col-3">
-                                            <input type="date" id="importDate" value={importDate} className="form-control" onChange={(e)=> handleChange(e,'importDate',true)}  style={{width:"140px"}} />
-                                        </div>
-                                        <div className="col-5">
-                                            <button type="button" className="btn btn-primary btn-sm" onClick={()=> importFrankyProcess()}>Process</button>
-                                        </div>
-                                    </div>
-                                   
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="card card-green mt-2">
-                            <div className="card-img-top fnt24 card-cust-title">Warehouse Cuts IR</div>
-                            <div className="card-body p-2">
-                                <div className="container">
-                                    <div className="row">
-                                        <div className="col-2"><label className="col-form-label">Load Date</label></div>
-                                        <div className="col-3">
-                                            <input type="date" id="cutDate" value={cutDate} className="form-control" onChange={(e)=> handleChange(e,'cutDate',true)}  style={{width:"140px"}} />
-                                        </div>
-                                        <div className="col-5">
-                                            <button type="button" className="btn btn-primary btn-sm" onClick={()=> warehouseCutProcess()}>Process</button>
-                                        </div>
-                                    </div>
-                                   
-                                </div>
                             </div>
                         </div>
                     </div>

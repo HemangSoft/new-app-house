@@ -14,8 +14,9 @@ router.post('/v1/netsuite/inventoryadjustmentcategory', netSuiteInvAdjCtrl.inven
 router.post('/v1/netsuite/inventoryadjustment', netSuiteInvAdjCtrl.inventoryAdjustment);
 router.post('/v1/netsuite/inventoryadjustmentprogress', netSuiteInvAdjCtrl.inventoryAdjustmentProgress);
 router.post('/v1/netsuite/inventoryrelief', netSuiteInvAdjCtrl.inventoryRelief);
+router.post('/v1/netsuite/warehousecutProcess', netSuiteInvAdjCtrl.warehouseCutProcess);
+router.post('/v1/netsuite/inventoryreliefprogress', netSuiteInvAdjCtrl.inventoryReliefProgress);
 router.post('/v1/netsuite/inventoryadjustmentlog', netSuiteInvAdjCtrl.inventoryAdjustmentLog);
 router.post('/v1/netsuite/importFrankyProcess', netSuiteInvAdjCtrl.importFrankyProcess);
-router.post('/v1/netsuite/warehousecutProcess', netSuiteInvAdjCtrl.warehouseCutProcess);
 
 module.exports = router;

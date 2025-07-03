@@ -89,6 +89,22 @@ export async function warehouseCutProcess(importDate) {
     });
 }
 
+export async function inventoryReliefProgress(inventorydate,name) {
+  return apiClient
+    .post('/v1/netsuite/inventoryreliefprogress', {
+        "inventorydate": inventorydate.replace(/-/g,''),
+        "name": name
+    })
+    .then(response => {
+        if (response && response.data) {
+            return response.data.data
+        }
+        return false
+    })
+    .catch(err => {
+        console.log(err);
+    });
+}
 
 export async function searchFrankyLog(startDateTime,endDateTime) {
   return apiClient

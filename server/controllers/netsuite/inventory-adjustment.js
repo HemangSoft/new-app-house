@@ -334,6 +334,7 @@ exports.inventoryRelief = async(req,res)=>{
     let apiServer = DEFAULT_API_SERVER;
     let inputData = req.body.items||[];
 
+    let IRProcessName = global.IRProcess && global.IRProcess.name||'';
     if(!Util.isNonEmptyArray(inputData)){
         return res.status(400).send({"status":400,"error":"No items data for process"});
     }
@@ -358,6 +359,11 @@ exports.inventoryRelief = async(req,res)=>{
 
     let allDates = [...new Set(inputData.map((x)=>x.ordLoadDate))];
     console.log("Total dates found ", allDates.length);
+    if(IRProcessName != ""){
+        global.IRProcess.total = allCategory.length;
+        global.IRProcess.completed = 0;
+    }
+
     //Step 3 => setup log for each category
     for(let dateLoop=0;dateLoop<allDates.length;dateLoop++){
         let inventorydate = allDates[dateLoop];
@@ -527,6 +533,10 @@ exports.inventoryRelief = async(req,res)=>{
         if(errLog){
             console.log(errLog);
         }
+
+        if(IRProcessName != ""){
+            global.IRProcess.completed = dateLoop + 1;
+        }
     }
     return res.status(200).send({"message":"OK","data_response":finalResponse});
 }
@@ -657,6 +667,35 @@ exports.warehouseCutProcess = async(req, res)=>{
         console.log(e.message);
         return res.status(400).send({"status":"400","message":"Error while calling agentic workflow url"});
     }
-    
-    return res.status(200).send({"status":"200","message":"OK"});
+   
+    let global_variable = Util.generateUniqueId(12);
+    global.IRProcess = {"name": global_variable, "total": -1,"completed":0,"start":new Date().getTime()};
+    res.status(200).send({"status":200,"message":"OK","total": -1,"completed":0,"name":global_variable})
+}
+
+exports.inventoryReliefProgress = async(req,res)=>{
+    let name = (req.body.name||'');
+    let IRPRocess = global.IRProcess;
+    console.log(IRPRocess);
+    if(IRPRocess){
+        if(name !== IRPRocess.name){
+            return res.status(400).send({"status":400,"message":"Import progress monitor details not found"});
+        }
+
+        //logic if still waiting for agentic to call url from last 2 min then stop it
+        if(IRPRocess.total == -1){
+            let curTime = new Date().getTime();
+            const diffInMs = Math.abs(curTime - IRPRocess.start);
+            // Convert milliseconds to seconds
+            const diffInSeconds = Math.floor(diffInMs / 1000);
+            //If waiting from 2 minutes then end it
+            if(diffInSeconds > 120){
+                return res.status(400).send({"status":400,"message":"Import progress mointor failed due to timeout"});
+            }
+        }
+        res.status(200).send({"status":200,"data":IRPRocess});
+    }
+    else{
+        return res.status(400).send({"status":400,"data":"Import progress data missing"});
+    }
 }
