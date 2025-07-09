@@ -249,6 +249,66 @@ const Home = (props) =>{
         }
     }
 
+    const importPO = async()=>{
+         if(inventoryDate ===""){
+            toast.error('Please select date');
+            return;
+        }
+
+        let impDate = dayjs(inventoryDate,'YYYYMMDD').format('YYYYMMDD');
+        setIsLoading(true);
+        const result = await publicCommonService.importPO(impDate);
+        if(result && result.message){
+            toast.success("Import Process started");
+            if(result.total > 0){
+                let progressPercentage = {showProgress:true,total:result.total,completed:result.completed ,syncPercentage:0, name:result.name};
+                progressInfoRef.current = progressPercentage;
+                setSyncProcessInfo({showProgress:true,syncPercentage:0,total:result.total});
+                setSyncProcessName("Import PO")
+                updatePOImportProgress();
+            }
+        }
+        setIsLoading(false);
+    }
+
+    const updatePOImportProgress = ()=>{
+        setTimeout(()=>{getProcessAJAXPO()},5000);
+    }
+
+    const getProcessAJAXPO = async()=>{
+        let progressPercentage =  {...progressInfoRef.current};
+        try{
+            const data = await publicCommonService.POImportProgress(inventoryDate,progressInfoRef.current.name);
+            if(data){
+                let total = data.total;
+                let completed = data.completed;
+
+                let percentage = parseInt(((completed/ total) * 100).toString());
+                if(percentage > 100) percentage = 100;
+
+                if(completed < total){
+                    progressPercentage.completed = completed;
+                    progressPercentage.syncPercentage = percentage;
+                    progressInfoRef.current = progressPercentage;
+                    setSyncProcessInfo(progressPercentage);
+                    updatePOImportProgress();
+                }
+                else{
+                   toast.success("Import PO transfer completed");
+                   progressInfoRef.current = {showProgress:false,total:0,completed:0 ,syncPercentage:0, name:''};
+                   setSyncProcessInfo({syncPercentage:0,showProgress:false,total:0});
+                   setSyncProcessName('');
+                }
+            }
+        }
+        catch{
+            toast.error("Import Progress monitor failed");
+            setSyncProcessName('');
+            setSyncProcessInfo({syncPercentage:0,showProgress:false,total:0});
+            progressInfoRef.current = {showProgress:false,total:0,completed:0 ,syncPercentage:0, name:''};
+        }
+    }
+
     const searchFrankyLog  = async()=>{
         if(logStartDate ===""){
             toast.error('Please select start date');
@@ -354,11 +414,14 @@ const Home = (props) =>{
                                             <div className="col-3">
                                                 <button type="button" className="btn btn-primary btn-sm w-100" onClick={()=> transferCategoryToNetsuite()}>Transfer to NetSuite</button>
                                             </div>
-                                            <div className="col-3">
+                                            <div className="col-2">
                                                 <button type="button" className="btn btn-primary btn-sm w-100" onClick={()=> importFrankyProcess()}>Import Franky</button>
                                             </div>
                                             <div className="col-3">
-                                                <button type="button" className="btn btn-primary btn-sm w-100" onClick={()=> warehouseCutProcess()}>Warehouse Cuts IR</button>
+                                                <button type="button" className="btn btn-primary btn-sm w-100" onClick={()=> warehouseCutProcess()}>Warehouse Cuts</button>
+                                            </div>
+                                            <div className="col-2">
+                                                <button type="button" className="btn btn-primary btn-sm w-100" onClick={()=> importPO()}>Import PO</button>
                                             </div>
                                         </div>
 

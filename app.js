@@ -16,6 +16,7 @@ const sslPort = config.SSL_PORT||'';
 global.appRoot = path.resolve(__dirname);
 global.categoryProcess = {};
 global.IRProcess = {};
+global.POProcess = {};
 
 const clientBuildPath = path.join(__dirname.replace("\server","") ,'build');
 

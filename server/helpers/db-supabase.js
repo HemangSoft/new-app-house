@@ -7,7 +7,6 @@ class DBSuperBase {
          this.supabaseInvRelief = createClient(config.SUPABASE_INV_URL, config.SUPABASE_INV_PASS);
     }
 
-
     getExcelValidation = async function(inventory_date,categoryList){
         let allRecords = [];
         let error2 = null;
@@ -82,6 +81,28 @@ class DBSuperBase {
             .gte('created_at', startDate)
             .lte('created_at', endDate)
             .order('id', { ascending: false });
+        return { data , error };
+    }
+
+    savePOTransferAPILog = async function(itemLogArray){
+        const { data, error } = await this.supabaseInvRelief
+            .from('po_transfer_log')
+            .insert(itemLogArray)
+        if(error){
+            console.log(error);
+            return {error:error,result:[]}
+        }
+        else{
+            return {error:null,result:data};
+        }
+    }
+
+    getPOTransferAPILog = async function(dueDate){
+        const { data, error } = await this.supabaseInvRelief
+            .from('po_transfer_log')
+            .select('prod_id,tranid,po_api_result,sb1_po_id,itemreceipt_api_result,message')
+            .eq('duedate', dueDate)
+            .order('created_at', { ascending: false });
         return { data , error };
     }
 }

@@ -699,3 +699,421 @@ exports.inventoryReliefProgress = async(req,res)=>{
         return res.status(400).send({"status":400,"data":"Import progress data missing"});
     }
 }
+
+function createPurchaseOrderPayload(){
+    let payloadStructure = {
+        // "billAddressList": { 
+        //     "id": "0"
+        // },
+        "customForm": {
+            "id": "175",
+            "refName": "Dora's Naturals  - Purchase Order"
+        },
+        "department": {
+            "id": "25"
+        },
+        "dueDate": "2025-07-26",
+        "entity": {
+           // "id": "8060",
+        },
+        "item": {
+        },
+        "location": {
+            "id": "30",
+            "refName": "21 EMPIRE : 21 EMPIRE - DSD"
+        },
+        "memo": "",
+        "orderStatus": {
+            "id": "E",
+            "refName": "E"
+        },
+        "prevDate": "2025-07-10",
+        // "purchaseContract": {
+        //     "id": "24623",
+        //     "refName": "Purchase Contract #8"
+        // },
+        "subsidiary": {
+            "id": "18",
+            //"refName": "DORA'S NATURALS, INC."
+        },
+        "terms": {
+            "id": "11",
+            "refName": "NET 21"
+        }
+    }
+    return payloadStructure;
+}
+
+function createPurchaseOrderReceiptPayload(){   
+    let payloadStructure = {
+        "createdFrom": {
+            //"id": "32732",
+        },
+        "custbody_broken_dirty": {
+            "id": "1",
+            "refName": "Yes"
+        },
+        "custbody_carrier": "-",
+        "custbody_clean_trialer": {
+            "id": "1",
+            "refName": "Yes"
+        },
+        "custbody_damaged_materials": {
+            "id": "2",
+            "refName": "No"
+        },
+        "custbody_food_product_shipped": {
+            "id": "1",
+            "refName": "Yes"
+        },
+        "custbody_foul_odor": {
+            "id": "1",
+            "refName": "Yes"
+        },
+        "custbody_product_temp": 0.0,
+        "custbody_rodent_activity": {
+            "id": "2",
+            "refName": "No"
+        },
+        "custbody_seal_locked": "yes",
+        "custbody_trailer": "-",
+        "custbody_truck_temp": 0.0,
+        "customForm": {
+            "id": "168",
+            "refName": "Dora's Natural  - Item Receipt"
+        },
+        "department": {
+            "id": "25",
+            "refName": "1 - DISTRIBUTION"
+        },
+        "entity": {
+            //"id": "8060",
+        },
+        "item": {
+            "items": [
+            ]
+        },
+        "landedCostMethod": {
+            "id": "WEIGHT",
+            "refName": "Weight"
+        },
+        "location": {
+            "id": "30",
+            "refName": "21 EMPIRE : 21 EMPIRE - DSD"
+        },
+        "orderId": 0,
+        "prevDate": "",
+        "subsidiary": {
+            "id": "18",
+            //"refName": "DORA'S NATURALS, INC."
+        }
+    }
+
+    return payloadStructure;
+}
+
+exports.importPO = async (req, res) => {
+    let apiServer = DEFAULT_API_SERVER;
+    let poDuedate = (req.body.date||'').replace(/-/g,'');
+    //poDuedate = '20250705';
+
+    let podateDayjs;
+    if(poDuedate == ''){
+        return res.status(400).json({
+            "status": 400,
+            "message": "Please provide date parameter"
+        });
+    }
+    else{
+        podateDayjs = dayjs(poDuedate,'YYYYMMDD');
+        if(podateDayjs.format('YYYYMMDD') != poDuedate){
+            return res.status(400).json({
+                "status": 400,
+                "message": "Please provide valid date parameter"
+            });
+        }
+    }
+    
+    //Step 1=> Fetch Purchase order which will need to be imported
+    poDuedate = podateDayjs.format('M/D/YYYY');
+    console.log("fetching production purchase order due for selected date ("+ poDuedate + ") at Netsuite level ", new Date());
+    let {errorMessage:netSuiteErr, allData : allPOData} = await commonMaster.viewNetSuiteData('PROD-PURCHASE-ORDER-SEARCH','PROD',{'selDay':poDuedate});
+    if(netSuiteErr){
+        console.log(netSuiteErr);
+        return res.status(400).send({"status":400,"error":"Error while fetching purchase orders from production "+ netSuiteErr});
+    }
+    else if(allPOData.length == 0){
+        return res.status(400).send({"status":400,"error":"No purchase order to delivered for selected date (" +  poDuedate +")"})
+    }
+
+    //Step 2 => Fetch vendor information from SB1 server for default billing address id to set at purchase order level
+    let {errorMessage:netSuiteErr2, allData : vendorData} = await commonMaster.viewNetSuiteData('VENDOR-ADDRESS-INFO-SEARCH',apiServer);
+    if(netSuiteErr2){
+        console.log(netSuiteErr2);
+        return res.status(400).send({"status":400,"error":"Error while fetching vendors information "+ netSuiteErr2});
+    }
+
+    //Step 3 => fetch items master with totalquantityonhand at Netsuite level
+    console.log("fetching Production server items master at Netsuite level ", new Date());
+    let {errorMessage:netSuiteErr3, allData : NetSuiteItemsProd} = await commonMaster.viewNetSuiteData('ITEM-STOCK','PROD');
+    if(netSuiteErr3){
+        console.log(netSuiteErr3); 
+        return res.status(400).send({"status":400,"error":"Error while fetching production item data from netsuite "+ netSuiteErr3});
+    }
+
+    console.log("fetching SB1 server items master at Netsuite level ", new Date());
+    let {errorMessage:netSuiteErr4, allData : netSuiteItemsSB1} = await commonMaster.viewNetSuiteData('ITEM-STOCK',apiServer);
+    if(netSuiteErr4){
+        console.log(netSuiteErr4);
+        return res.status(400).send({"status":400,"error":"Error while fetching sb1 server item data from netsuite "+ netSuiteErr4});
+    }
+
+    //Step 4=> Fetch Purchase order log from supabase for duedate
+    let {error:netSuiteErr5, data : poTransferLogData} = await DBSuperBase.getPOTransferAPILog(poDuedate);
+    if(netSuiteErr5){
+        console.log(netSuiteErr5);
+        return res.status(400).send({"status":400,"error":"Error while fetching purchase order log from supabase "+ netSuiteErr5});
+    }
+
+
+    let global_variable = Util.generateUniqueId(12);
+    let totalRecords = allPOData.length;//totalRecords=6;
+    global.POProcess[global_variable] = {"total":totalRecords,"completed":0,"start":new Date().getTime()};
+    res.status(200).send({"status":200,"total":totalRecords,"completed":0,"name":global_variable,"message":"OK"});
+
+    for(let loop=0;loop<totalRecords;loop++){
+        console.log(`processing po#${loop + 1} / ${totalRecords}`);
+        
+        let poId = allPOData[loop].purchase_order_id;
+        let curRecordID = 0;
+
+        let poTransferLog = poTransferLogData.filter((x)=>x.prod_id == poId);
+        if(poTransferLog && poTransferLog.length > 0){
+            let poWithReceiptCreated = false;
+            poTransferLog.forEach((x)=>{
+                if(x.po_api_result == 'Success' && x.itemreceipt_api_result == 'Success'){
+                    poWithReceiptCreated = true;
+                }
+                else if(x.po_api_result == 'Success'){
+                    curRecordID = x.sb1_po_id;
+                }
+            });
+
+            if(poWithReceiptCreated){
+                console.log("PO already processed for ", poId);
+                if(global_variable != ""){
+                    global.POProcess[global_variable].completed = loop + 1;
+                }
+                continue;
+            }
+        }
+        
+        let po_transfer_log ={"prod_id":poId,"duedate":poDuedate,"tranid":"","po_payload":"","po_api_result":"","sb1_po_id":0,"itemreceipt_payload":"","itemreceipt_api_result":"","message":"Failed"};
+        let {errorMessage:netSuitePOErr2, allData : poDetailData} = await commonMaster.getNSRestJSON('purchaseorder','PROD',poId);
+        if(netSuitePOErr2){
+            console.log(netSuitePOErr2);
+            po_transfer_log.po_api_result = "Failed to fetch PO detail from production"; 
+        }
+        else if(poDetailData.id){ //Means we got purchase order data
+            let poPayload =  createPurchaseOrderPayload();
+            poPayload.dueDate = poDetailData.dueDate;
+           
+            let vendorIndex = vendorData.findIndex((x)=>x.vendor_id == poDetailData.entity.id);
+            if(vendorIndex> -1){
+                poPayload.entity = {"id":poDetailData.entity.id};
+                if(vendorData[vendorIndex].address_id)poPayload.billingaddress = vendorData[vendorIndex].address_id;
+            }
+            else{
+                vendorIndex = vendorData.findIndex((x)=>x.vendor_code == poDetailData.entity.refName);
+                if(vendorIndex> -1){
+                    poPayload.entity = {"id":vendorData[vendorIndex].vendor_id};
+                    if(vendorData[vendorIndex].address_id)poPayload.billingaddress =vendorData[vendorIndex].address_id;
+                }
+            }
+
+            if(vendorIndex > - 1){
+                poPayload.memo = "PROD PO# "+ poDetailData.id +  "  | tranId :"+ poDetailData.tranId;
+                poPayload.prevDate = poDetailData.prevDate;
+                poPayload.shipDate = poDetailData.shipDate;
+                //poPayload.terms =  { id:""}
+
+                let poItems =  [];
+                let poItemReceipt = [];
+                poDetailData.item.items.forEach((d) => {
+                    let itemIndex = NetSuiteItemsProd.findIndex((x) => x.id == d.item.id);
+                    let itemInternalID = 0;
+                    let itemId = '';
+                    let netSuiteItemInActive = 'F';
+                    if(itemIndex > -1){
+                        itemIndex = netSuiteItemsSB1.findIndex((x) => x.itemid == NetSuiteItemsProd[itemIndex].itemid);
+                        if(itemIndex > -1){
+                            netSuiteItemInActive = netSuiteItemsSB1[itemIndex].isinactive;
+                            itemInternalID = parseInt(netSuiteItemsSB1[itemIndex].id);
+                            itemId = netSuiteItemsSB1[itemIndex].itemid;
+                        }
+                    }
+
+                    if(itemInternalID > 0){
+                        let itemQty = parseFloat(d.quantity);
+                        if(isNaN(itemQty)) itemQty = 0;
+                        let itemQtyReceived = parseFloat(d.quantityReceived);
+                        if(isNaN(itemQtyReceived)) itemQtyReceived = 0;
+
+                        if(itemQty > 0 || itemQtyReceived > 0){
+                            if(itemQty < itemQtyReceived)itemQty = itemQtyReceived;
+                            poItems.push({
+                                "item": {
+                                    "id": itemInternalID
+                                },
+                                "quantity": itemQty
+                            });
+                            
+                            if(itemQtyReceived > 0){
+                                poItemReceipt.push({
+                                    "inventoryDetail": {
+                                        "inventoryAssignment": {
+                                            "items": [
+                                                {
+                                                    //"expirationDate": "2025-07-24",
+                                                    "inventoryStatus": {
+                                                        "id": "1",
+                                                        "refName": "Good"
+                                                    },
+                                                    "quantity": itemQtyReceived,
+                                                    "receiptInventoryNumber": itemId +"-ERMS"
+                                                }
+                                            ]
+                                        },
+                                        "quantitytobereceived": itemQtyReceived
+                                    },               
+                                    "itemReceive": true,
+                                    "orderLine": poItems.length,
+                                    "quantity": itemQtyReceived
+                                });
+                            }
+                            else{
+                                poItemReceipt.push({
+                                    "itemReceive": false,
+                                    "orderLine": poItems.length,
+                                });
+                            }
+                        }
+                    }
+                });
+                poPayload.item = {"items":poItems};
+                
+                po_transfer_log.tranid = poDetailData.tranId;
+                po_transfer_log.po_payload = JSON.stringify(poPayload);
+
+                //console.log(JSON.stringify(poPayload));
+                if(curRecordID == 0){
+                    if(poItems.length > 0){
+                        console.log("call create purchase order api for "+  loop + " ", new Date());
+                        try{
+                            const methodType = 'POST';
+                            const postURL = Util.getBaseRestURL(apiServer) + 'purchaseorder';
+                            const headers = Util.createOAuthHeader(postURL, methodType, apiServer);
+
+                            const response = await axios.post(postURL, poPayload, {headers: headers});
+                            const dataJSON = await response;
+                            
+                            if (dataJSON.status == 204 || dataJSON.ok) {
+                                let locURL = dataJSON.headers.get('Location')||'';
+                                console.log("New record added at "+ locURL);
+                                curRecordID = parseInt(locURL.replace(postURL,'').replace('/',''));
+                                if(isNaN(curRecordID)) curRecordID = '';
+                                console.log("New record curRecordID "+ curRecordID);    
+                                
+                                po_transfer_log.po_api_result = 'Success';
+                                po_transfer_log.sb1_po_id = curRecordID;
+                            }
+                        }
+                        catch(e){
+                            console.log(JSON.stringify(poPayload));
+                            if (e.response) {
+                                console.error('Data:', e.response.data);
+                                po_transfer_log.po_api_result = JSON.stringify(e.response.data); 
+                            }
+                            else {
+                                // Error in setting up the request
+                                console.error('Error creating NetSuite API request ',e?.message);
+                                po_transfer_log.po_api_result = 'Error creating NetSuite API request ',e?.message; 
+                            }
+                        }
+                    }
+                    else{
+                        console.log("No item received for po ");
+                        po_transfer_log.po_api_result = "No item received for po "; 
+                    }
+                }
+                else{
+                    po_transfer_log.po_api_result = 'Success';
+                    po_transfer_log.sb1_po_id = curRecordID;
+                }
+
+                if(curRecordID >0){
+                    console.log("call create PO Receipt api for "+  loop + " ", new Date());
+                    let poReceiptPayload = createPurchaseOrderReceiptPayload();
+                    poReceiptPayload.orderId = curRecordID;
+                    poReceiptPayload.createdFrom = {id:curRecordID};
+                    poReceiptPayload.entity = poPayload.entity;
+                    poReceiptPayload.prevDate = poPayload.prevDate;
+                    poReceiptPayload.tranDate = poPayload.prevDate;
+                    poReceiptPayload.item = {"items": poItemReceipt};
+                    po_transfer_log.itemreceipt_payload = JSON.stringify(poReceiptPayload);
+                    
+                    try{
+                        const methodType = 'POST';
+                        const postURL = Util.getBaseRestURL(apiServer) + 'purchaseorder/'+ curRecordID +'/!transform/itemreceipt';
+                        console.log(postURL);
+                        const headers = Util.createOAuthHeader(postURL, methodType, apiServer);
+
+                        const response = await axios.post(postURL, poReceiptPayload, {headers: headers});
+                        await response;//const dataJSON = await response;
+                        po_transfer_log.itemreceipt_api_result = 'Success';
+                    }
+                    catch(e){
+                        console.log(JSON.stringify(poReceiptPayload));
+                        if (e.response) {
+                            console.error('Data:', e.response.data);
+                            po_transfer_log.itemreceipt_api_result = e.response.data; 
+                        }
+                        else {
+                            console.error('Error creating PO receipt NetSuite API request ',e?.message);
+                            po_transfer_log.itemreceipt_api_result = 'Error creating PO receipt NetSuite API request ',e?.message; 
+                        }
+                    }
+                }
+            }
+            else{
+                console.log("Vendor not found for ", poDetailData.entity.id , "  refName :", poDetailData.entity.refName);
+                po_transfer_log.po_api_result = "Failed to fetch Vendor for po"; 
+            }
+
+            
+            if(po_transfer_log.po_api_result == 'Success' && po_transfer_log.itemreceipt_api_result == 'Success'){  
+                po_transfer_log.message = "Success";
+            }
+            //Save PO transfer log
+            let { error : errLog } = await DBSuperBase.savePOTransferAPILog(po_transfer_log);
+            if(errLog){
+                console.log(errLog);
+            }
+
+            if(global_variable != ""){
+                global.POProcess[global_variable].completed = loop + 1;
+            }
+        }
+    }
+    console.log("---- PO Import completed -----")
+}
+
+exports.POImportProgress = async(req,res)=>{
+    let name = (req.body.name||'');
+    if(global.POProcess && global.POProcess[name]){
+        return res.status(200).send({"status":200,"data":global.POProcess[name]});
+    }
+    else{
+        return res.status(400).send({"status":400,"message":"Import progress data missing"});
+    }
+}

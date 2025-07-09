@@ -106,6 +106,40 @@ export async function inventoryReliefProgress(inventorydate,name) {
     });
 }
 
+export async function importPO(importDate) {
+  return apiClient
+    .post('/v1/netsuite/importPO', {
+        "date": importDate.replace(/-/g,''),
+    })
+    .then(response => {
+        if (response && response.data) {
+            return response.data
+        }
+        return false
+    })
+    .catch(err => {
+        console.log(err);
+    });
+}
+
+
+export async function POImportProgress(inventorydate,name) {
+  return apiClient
+    .post('/v1/netsuite/poimportprogress', {
+        "inventorydate": inventorydate.replace(/-/g,''),
+        "name": name
+    })
+    .then(response => {
+        if (response && response.data) {
+            return response.data.data
+        }
+        return false
+    })
+    .catch(err => {
+        console.log(err);
+    });
+}
+
 export async function searchFrankyLog(startDateTime,endDateTime) {
   return apiClient
     .post('/v1/netsuite/inventoryadjustmentlog', {
